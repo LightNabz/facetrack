@@ -1,27 +1,28 @@
 import cv2
-import random
+import mediapipe as mp
 import time
+import random
+import numpy as np
 
-distance_threshold_sq = 50 * 50
-detect_interval = 5
 face_data = []
+distance_threshold = 50
+detect_interval = 1
 last_faces = []
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-if face_cascade.empty():
-    print("kneaf pula (eror haar apalah)")
-    exit()
+mp_face_detection = mp.solutions.face_detection
+mp_drawing = mp.solutions.drawing_utils
+
+face_detector = mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.6)
 
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 cv2.namedWindow('Face Tracker Nguwawor', cv2.WND_PROP_FULLSCREEN)
 cv2.setWindowProperty('Face Tracker Nguwawor', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 random_ahh = [
-    "Neja Beras", "Ohim Lutung", "Sigit Rendang",
-    "Dimas Jordan", "Kapal Emas", "Royan Sybau"
+    "Neja Beras", "Ohim Lutung", "Sigit Rendang", "Dimas Jordan", "Kapal Emas", "Royan Sybau"
 ]
 
 def generate_random_info():
@@ -30,9 +31,14 @@ def generate_random_info():
 def statik_ingfo():
     return f"Suka Nasi Padang: {random.randint(10, 100)}%"
 
+def how_much():
+    return f"Tingkat IQ: {random.randint(80, 150)}"
+
 start_time = time.time()
 frame_count = 0
 fps = 0
+
+frame_id = 0
 
 while True:
     ret, frame = cap.read()
@@ -40,57 +46,71 @@ while True:
         continue
 
     frame = cv2.flip(frame, 1)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = face_detector.process(rgb_frame)
 
-    if frame_count % detect_interval == 0:
-        last_faces = face_cascade.detectMultiScale(
-            gray,
-            scaleFactor=1.1,
-            minNeighbors=5,
-            minSize=(60, 60) 
-        )
-    faces = last_faces
+    faces = []
+    if results.detections:
+        for detection in results.detections:
+            bboxC = detection.location_data.relative_bounding_box
+            ih, iw, _ = frame.shape
+            x = int(bboxC.xmin * iw)
+            y = int(bboxC.ymin * ih)
+            w = int(bboxC.width * iw)
+            h = int(bboxC.height * ih)
+            faces.append((x, y, w, h))
 
-    now = time.time()
     for (x, y, w, h) in faces:
-        cx, cy = x + w // 2, y + h // 2
+        center = (x + w // 2, y + h // 2)
         matched = False
 
         for face in face_data:
-            dx = cx - face['pos'][0]
-            dy = cy - face['pos'][1]
-            dist_sq = dx * dx + dy * dy
-
-            if dist_sq < distance_threshold_sq:
-                face['pos'] = (cx, cy)
-                face['last_seen'] = now
+            prev_x, prev_y = face['pos']
+            dist = np.hypot(center[0] - prev_x, center[1] - prev_y)
+            if dist < distance_threshold:
+                face['pos'] = center
                 info = face['info']
                 info_static = face['static']
+                info_how = face['how']
                 matched = True
                 break
 
         if not matched:
             info = generate_random_info()
             info_static = statik_ingfo()
+            info_how  = how_much()
             face_data.append({
-                'pos': (cx, cy),
+                'pos': center,
                 'info': info,
                 'static': info_static,
-                'last_seen': now
+                'how': info_how
             })
 
         label = f"ID Wajah: {face_data.index(next(f for f in face_data if f['info'] == info)) + 1}"
 
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (245, 245, 245), 1)
+        # Draw rectangle and info
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 255), 2)
         cv2.putText(frame, label, (x, y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (235, 235, 235), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 3)
+        cv2.putText(frame, label, (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
+
         cv2.putText(frame, info, (x + w + 10, y + 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
+        cv2.putText(frame, info, (x + w + 10, y + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
         cv2.putText(frame, info_static, (x + w + 10, y + 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
+        cv2.putText(frame, info_static, (x + w + 10, y + 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        
+        cv2.putText(frame, info_how, (x + w + 10, y + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
+        cv2.putText(frame, info_how, (x + w + 10, y + 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
-    face_data = [f for f in face_data if now - f['last_seen'] < 3]
-
+    # FPS display
     frame_count += 1
     elapsed = time.time() - start_time
     if elapsed >= 1.0:
@@ -100,8 +120,9 @@ while True:
 
     cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 255), 2)
-    
-    frame_show = cv2.resize(frame, (1280, 720))
+
+    # Show output
+    frame_show = cv2.resize(frame, (1920, 1080))
     cv2.imshow('Face Tracker Nguwawor', frame_show)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

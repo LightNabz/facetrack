@@ -4,8 +4,8 @@ import time
 import numpy as np
 
 face_data = []
-distance_threshold = 50
-detect_interval = 5
+distance_threshold = 200
+detect_interval = 1
 last_faces = []
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -81,13 +81,23 @@ while True:
 
         label = f"ID Wajah: {face_data.index(next(f for f in face_data if f['info'] == info)) + 1}"
 
-        cv2.rectangle(frame, (x_big, y_big), (x_big + w_big, y_big + h_big), (245, 245, 245), 1)
+        # Draw rectangle with thick white border
+        cv2.rectangle(frame, (x_big, y_big), (x_big + w_big, y_big + h_big), (255, 255, 255), 2)
+        # Draw label with black outline for visibility
         cv2.putText(frame, label, (x_big, y_big - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (235, 235, 235), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 3)
+        cv2.putText(frame, label, (x_big, y_big - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
+        # Info with black outline
         cv2.putText(frame, info, (x_big + w_big + 10, y_big + 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
+        cv2.putText(frame, info, (x_big + w_big + 10, y_big + 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        # Static info with black outline
         cv2.putText(frame, info_static, (x_big + w_big + 10, y_big + 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 3)
+        cv2.putText(frame, info_static, (x_big + w_big + 10, y_big + 60),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
     frame_count += 1
     elapsed = time.time() - start_time
